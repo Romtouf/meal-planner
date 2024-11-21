@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealPlanner - Planificateur de Repas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Cacher la barre de défilement tout en gardant la fonctionnalité */
+        .hide-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;     /* Firefox */
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;            /* Chrome, Safari and Opera */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: 
+                radial-gradient(circle at 100% 100%, rgba(74, 222, 128, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 0% 0%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            background-attachment: fixed;
+            -webkit-tap-highlight-color: transparent; /* Supprime le flash bleu sur mobile */
+        }
+        
+        .meal-card {
+            transition: all 0.3s ease;
+        }
+        
+        @media (hover: hover) {
+            .meal-card:hover {
+                transform: translateY(-2px);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <div x-data="mealPlanner" class="container mx-auto px-4 py-8">
+        <!-- En-tête -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                🥗 MealPlanner
+            </h1>
+            <p class="text-gray-600">Planifiez vos repas de la semaine simplement</p>
+        </header>
+
+        <!-- Navigation des jours -->
+        <div class="flex justify-between mb-8 bg-white/50 backdrop-blur-sm p-3 rounded-2xl shadow-sm overflow-x-auto md:overflow-hidden">
+            <template x-for="(day, index) in days" :key="index">
+                <button 
+                    @click="selectedDay = index"
+                    class="px-3 md:px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 relative group flex-shrink-0 md:flex-shrink"
+                    :class="selectedDay === index 
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/20 scale-110' 
+                        : 'bg-white/50 text-gray-600 hover:bg-white hover:shadow-md hover:scale-105'">
+                    <span x-text="day.name" class="capitalize block"></span>
+                    <span x-text="day.date" class="text-[10px] opacity-75"></span>
+                </button>
+            </template>
+        </div>
+
+        <!-- Grille des repas -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+            <!-- Déjeuner -->
+            <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm p-4 sm:p-6 transition-all duration-300 hover:shadow-md">
+                <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-yellow-100 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center mr-2 shadow-sm">🌞</span>
+                    Déjeuner
+                </h3>
+                
+                <!-- Zone de saisie ou affichage -->
+                <template x-if="!meals[selectedDay].lunch">
+                    <div x-show="!showMealInput || currentMealType !== 'lunch'" 
+                         @click="openMealInput('lunch')"
+                         class="border-2 border-dashed border-gray-200 rounded-xl p-3 sm:p-4 text-center cursor-pointer hover:border-green-500 hover:bg-white/50 transition-all duration-300">
+                        <p class="text-gray-500 text-sm sm:text-base">+ Ajouter un déjeuner</p>
+                    </div>
+                </template>
+
+                <!-- Formulaire de saisie -->
+                <div x-show="showMealInput && currentMealType === 'lunch'" class="space-y-2">
+                    <input 
+                        id="newMealInput"
+                        type="text" 
+                        x-model="newMealName"
+                        @keyup.enter="addMeal()"
+                        placeholder="Entrez votre repas..."
+                        class="w-full p-2 sm:p-3 text-sm sm:text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white/70 backdrop-blur-sm transition-all duration-300"
+                    >
+                    <div class="flex gap-2">
+                        <button 
+                            @click="addMeal()"
+                            class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg hover:shadow-green-500/20 transition-all duration-300 flex-1">
+                            Valider
+                        </button>
+                        <button 
+                            @click="showMealInput = false"
+                            class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-white text-gray-600 rounded-xl hover:bg-gray-50 transition-all duration-300">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Affichage du repas -->
+                <div x-show="meals[selectedDay].lunch" 
+                     class="meal-card bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-medium text-gray-800 text-sm sm:text-base" x-text="meals[selectedDay].lunch.name"></h4>
+                        </div>
+                        <button @click="meals[selectedDay].lunch = null; saveToLocalStorage()" 
+                                class="text-gray-400 hover:text-red-500 transition-all duration-300 hover:rotate-90">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dîner -->
+            <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-sm p-4 sm:p-6 transition-all duration-300 hover:shadow-md">
+                <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-indigo-100 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center mr-2 shadow-sm">🌙</span>
+                    Dîner
+                </h3>
+                
+                <!-- Zone de saisie ou affichage -->
+                <template x-if="!meals[selectedDay].dinner">
+                    <div x-show="!showMealInput || currentMealType !== 'dinner'" 
+                         @click="openMealInput('dinner')"
+                         class="border-2 border-dashed border-gray-200 rounded-xl p-3 sm:p-4 text-center cursor-pointer hover:border-green-500 hover:bg-white/50 transition-all duration-300">
+                        <p class="text-gray-500 text-sm sm:text-base">+ Ajouter un dîner</p>
+                    </div>
+                </template>
+
+                <!-- Formulaire de saisie -->
+                <div x-show="showMealInput && currentMealType === 'dinner'" class="space-y-2">
+                    <input 
+                        id="newMealInput"
+                        type="text" 
+                        x-model="newMealName"
+                        @keyup.enter="addMeal()"
+                        placeholder="Entrez votre repas..."
+                        class="w-full p-2 sm:p-3 text-sm sm:text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white/70 backdrop-blur-sm transition-all duration-300"
+                    >
+                    <div class="flex gap-2">
+                        <button 
+                            @click="addMeal()"
+                            class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:shadow-lg hover:shadow-green-500/20 transition-all duration-300 flex-1">
+                            Valider
+                        </button>
+                        <button 
+                            @click="showMealInput = false"
+                            class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-white text-gray-600 rounded-xl hover:bg-gray-50 transition-all duration-300">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Affichage du repas -->
+                <div x-show="meals[selectedDay].dinner" 
+                     class="meal-card bg-gradient-to-br from-white to-gray-50 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-medium text-gray-800 text-sm sm:text-base" x-text="meals[selectedDay].dinner.name"></h4>
+                        </div>
+                        <button @click="meals[selectedDay].dinner = null; saveToLocalStorage()" 
+                                class="text-gray-400 hover:text-red-500 transition-all duration-300 hover:rotate-90">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="meal-details" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="display: none;">
+        <!-- Le contenu sera chargé ici par HTMX -->
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('mealPlanner', () => ({
+                selectedDay: 0,
+                showMealInput: false,
+                currentMealType: null,
+                newMealName: '',
+                days: [],
+                meals: [],
+
+                init() {
+                    this.initDays();
+                    this.initMeals();
+                    this.loadFromLocalStorage();
+                },
+
+                // Initialisation des jours et repas
+                initDays() {
+                    const today = new Date();
+                    this.days = Array.from({ length: 7 }, (_, i) => {
+                        const date = new Date(today);
+                        date.setDate(today.getDate() + i);
+                        return {
+                            name: new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(date),
+                            date: date.getDate() + '/' + (date.getMonth() + 1)
+                        };
+                    });
+                },
+
+                initMeals() {
+                    this.meals = Array.from({ length: 7 }, () => ({
+                        lunch: null,
+                        dinner: null
+                    }));
+                },
+
+                // Gestion des repas
+                addMeal() {
+                    if (this.newMealName.trim()) {
+                        this.meals[this.selectedDay][this.currentMealType] = {
+                            id: Date.now(),
+                            name: this.newMealName.trim()
+                        };
+                        this.newMealName = '';
+                        this.showMealInput = false;
+                        this.saveToLocalStorage();
+                    }
+                },
+
+                openMealInput(mealType) {
+                    this.currentMealType = mealType;
+                    this.showMealInput = true;
+                    this.newMealName = '';
+                    setTimeout(() => {
+                        document.getElementById('newMealInput')?.focus();
+                    }, 100);
+                },
+
+                // LocalStorage
+                saveToLocalStorage() {
+                    localStorage.setItem('mealPlan', JSON.stringify(this.meals));
+                },
+
+                loadFromLocalStorage() {
+                    const saved = localStorage.getItem('mealPlan');
+                    if (saved) {
+                        this.meals = JSON.parse(saved);
+                    }
+                }
+            }));
+        });
+    </script>
+</body>
+</html>
