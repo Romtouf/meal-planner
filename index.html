@@ -53,10 +53,10 @@
             <template x-for="(day, index) in days" :key="index">
                 <button 
                     @click="selectedDay = index"
-                    class="px-3 md:px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 relative group flex-shrink-0 md:flex-shrink"
+                    class="px-3 md:px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 relative group flex-shrink-0 md:flex-shrink mx-1 first:ml-0 last:mr-0"
                     :class="selectedDay === index 
-                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/20 scale-110' 
-                        : 'bg-white/50 text-gray-600 hover:bg-white hover:shadow-md hover:scale-105'">
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/20 scale-105' 
+                        : 'bg-white/50 text-gray-600 hover:bg-white hover:shadow-md hover:scale-102'">
                     <span x-text="day.name" class="capitalize block"></span>
                     <span x-text="day.date" class="text-[10px] opacity-75"></span>
                 </button>
